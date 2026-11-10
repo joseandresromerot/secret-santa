@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { addParticipant, removeParticipant, updateParticipant } from "../actions/participants";
 import { MIN_PARTICIPANTS } from "../constants";
+import { ImportParticipantsDialog } from "./import-participants-dialog";
 
 type Participant = { id: string; name: string; email: string };
 
@@ -40,9 +41,12 @@ export function ParticipantsManager({
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold">{t("title")}</h2>
-        <p className="text-sm text-muted-foreground">{t("description")}</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">{t("title")}</h2>
+          <p className="text-sm text-muted-foreground">{t("description")}</p>
+        </div>
+        <ImportParticipantsDialog drawId={drawId} existingNames={participants.map((p) => p.name)} />
       </div>
 
       <form onSubmit={onAdd} className="grid gap-2 rounded-xl border bg-card p-4 sm:grid-cols-[1fr_1fr_auto]">

@@ -76,3 +76,40 @@ export async function removeParticipant(participantId: string) {
     await touchDraw(draw.id);
   });
 }
+
+/**
+ * Imports several participants at once. Invalid rows and names that already
+ * exist (in the draw or earlier in the batch) are skipped.
+ */
+export async function addParticipants(drawId: string, input: ParticipantInput[]) {
+  return runAction(async () => {
+    const userId = await currentUserId();
+    await assertOwnedDraw(drawId, userId);
+    if (!Array.isArray(input) || input.length === 0) throw new ActionError("invalidParticipant");
+
+    const existing = await db
+      .select({ name: participants.name })
+      .from(participants)
+      .where(eq(participants.drawId, drawId));
+    if (existing.length + input.length > MAX_PARTICIPANTS) {
+      throw new ActionError("tooManyParticipants");
+    }
+
+    const taken = new Set(existing.map((p) => p.name.toLowerCase()));
+    const rows: { drawId: string; name: string; email: string }[] = [];
+    for (const item of input) {
+      const parsed = participantSchema.safeParse(item);
+      if (!parsed.success) continue;
+      const key = parsed.data.name.toLowerCase();
+      if (taken.has(key)) continue;
+      taken.add(key);
+      rows.push({ drawId, ...parsed.data });
+    }
+
+    if (rows.length > 0) {
+      await db.insert(participants).values(rows);
+      await touchDraw(drawId);
+    }
+    return { added: rows.length, skipped: input.length - rows.length };
+  });
+}
