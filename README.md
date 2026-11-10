@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Secret Santa
 
-## Getting Started
+Web app to organize Secret Santa draws. Organizers sign in with Google, create
+draws, add participants, define restrictions and run the draw. Every participant
+receives an email with the person they have to give a gift to.
 
-First, run the development server:
+## Features
+
+- Google sign-in; draws are saved per user and can be resumed at any time.
+- 4-step wizard: details → participants → restrictions → review.
+- **Groups**: members of the same group never give to each other.
+- **Restrictions between groups**: mark pairs of groups (A ↔ B) whose members
+  must not give to each other in either direction.
+- Feasibility check before drawing; impossible configurations are explained.
+- Random draw that always respects the restrictions (perfect matching + random
+  swaps for an unbiased result). Nobody can see who got whom.
+- Emails via Gmail SMTP, with delivery status and resend (optionally fixing the
+  address).
+- Spanish and English UI; each draw chooses the language of its emails.
+
+## Stack
+
+Next.js 16 (App Router) · Auth.js (Google) · Drizzle ORM · PostgreSQL (Docker
+locally, Neon in production) · next-intl · shadcn/ui (Base UI) · Tailwind ·
+Nodemailer · Vitest.
+
+## Local development
 
 ```bash
+docker compose up -d          # PostgreSQL on localhost:5434
+cp .env.example .env.local    # then fill in the values (see below)
+npm install
+npm run db:migrate
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+If `GMAIL_USER` / `GMAIL_APP_PASSWORD` are empty, emails are printed to the
+server console instead of being sent.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Configuration
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Google OAuth
 
-## Learn More
+1. Go to <https://console.cloud.google.com/apis/credentials> and create a
+   project.
+2. Configure the OAuth consent screen (External) and publish it.
+3. Create an **OAuth client ID** of type *Web application* with these
+   authorized redirect URIs:
+   - `http://localhost:3000/api/auth/callback/google`
+   - `https://<your-app>.vercel.app/api/auth/callback/google`
+4. Copy the client ID and secret into `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET`.
 
-To learn more about Next.js, take a look at the following resources:
+Generate `AUTH_SECRET` with `npx auth secret` (or `openssl rand -base64 33`).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Gmail (sending emails)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Use a dedicated Gmail account for the app.
+2. Enable 2-Step Verification on that account.
+3. Create an App Password at <https://myaccount.google.com/apppasswords>.
+4. Set `GMAIL_USER` (the address) and `GMAIL_APP_PASSWORD` (16 characters,
+   no spaces).
 
-## Deploy on Vercel
+Gmail allows roughly 500 emails per day.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deploying to Vercel
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Create a free Postgres database on [Neon](https://neon.tech) and copy the
+   pooled connection string.
+2. Import the repository in Vercel.
+3. Add the environment variables: `DATABASE_URL`, `AUTH_SECRET`,
+   `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`.
+4. Deploy. `vercel.json` runs the database migrations before each build.
+5. Add the production callback URL to the Google OAuth client (see above).
+
+## Commands
+
+```bash
+npm run dev          # Dev server
+npm run build        # Production build
+npm run test         # Unit tests (draw algorithm)
+npm run lint         # ESLint
+npm run typecheck    # TypeScript
+npm run db:generate  # Generate a migration after changing src/db/schema
+npm run db:migrate   # Apply migrations
+npm run db:studio    # Browse the database
+```
